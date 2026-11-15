@@ -6,3 +6,4 @@ data/verdict_cache.json
 data/waitlist.jsonl
 data/traction.json
 data/feedback.jsonl
+.venv/
