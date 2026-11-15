@@ -12,13 +12,29 @@
 [![MCP server](https://img.shields.io/badge/MCP-ready-8a63d2.svg)](#-give-it-to-your-agents)
 [![Built on HydraDB](https://img.shields.io/badge/built%20on-HydraDB-111.svg)](#-built-on-hydradb)
 
-**[Live demo](https://YOUR-DEPLOYMENT/demo)** · **[Try it on your own facts](https://YOUR-DEPLOYMENT/try)** · **[Results](#-results)** · **[Quickstart](#-quickstart)** · **[Deploy](#-deploy)**
+**[▶ Watch the 90-second demo](https://YOUR-DEPLOYMENT/demo?autoplay=1)** · **[Try it on your own facts](https://YOUR-DEPLOYMENT/try)** · **[For judges](#-for-judges-see-it-in-3-steps)** · **[Results](#-results)** · **[Quickstart](#-quickstart)** · **[Deploy](#-deploy)**
 
 <sub>HydraDB Hackathon · Track 1: a graph that improves itself</sub>
 
 <img src="docs/landing.png" alt="Physarum landing page: a live slime-mould network growing between entities" width="100%">
 
 </div>
+
+---
+
+## 👩‍⚖️ For judges: see it in 3 steps
+
+No install and no sign-up. Every browser tab gets its **own private sandbox**, so nothing you do changes what another judge sees.
+
+| Step | Where to click | What you'll see | Time |
+|:---:|---|---|:---:|
+| **1. ▶ Watch** | Landing page → **"Watch the 90-second live demo"**<br>or go straight to [`/demo?autoplay=1`](https://YOUR-DEPLOYMENT/demo?autoplay=1) | The whole story plays by itself: the graph answers *Elizabeth II*, jumps to the real world of 2026, agents vote, tubes thicken, and it heals to *Charles III* while RAG and the frozen graph stay wrong. | 90 s |
+| **2. ? Understand** | In the demo, click **"? Tour"** (top right).<br>First-time visitors also get a welcome card offering **Watch it** or **Guided tour**. | An 11-stop walkthrough that highlights each panel: asking in plain English, the three readers side by side (RAG, frozen graph, Physarum), voting, the tube map, agent traffic, jumping to 2026, *Why?* / self-audit / real world, the time-lapse, the wipe-and-restore proof, and the live HydraDB query log. Use ← → or Esc. | ~2 min |
+| **3. ✍️ Try your own** | Landing page → **"Try it on your graph"**<br>or go to [`/try`](https://YOUR-DEPLOYMENT/try) | Paste `subject,relation,object` lines (or upload a CSV, up to 5,000 facts), or click the built-in example. Ask a question, vote 👎 once, and watch the answer heal. | 1 min |
+
+> 💡 **The 30-second wow moment** (in `/try` with the example): ask where **Bob** is based → *London* (unsure, 50/50). Vote 👎 once → *Berlin*, 97% confident. Then ask "Which tool does Bob's team use?" It's right **with no vote at all**, because it shares the healed edge. Open the audit: `Bob reports_to Carol` is flagged as stale.
+
+You can also click **Autoplay** or **Reset** at any time in the demo's top bar, or open the **Shared colony** (`/demo?shared=1`), whose learning persists in HydraDB.
 
 ---
 
@@ -211,7 +227,15 @@ Without an API key, a simulated judge stands in for user votes, and it is **deli
 
 ## ☁️ Deploy
 
-The repo ships with a `Dockerfile`, `railway.json` (with a health check on `/api/health`) and `docker-compose.yml`. The server needs **about 500 MB of RAM** (it loads the graph and the spaCy RAG baseline), so choose a plan with **at least 1 GB**.
+The repo ships with a `Dockerfile`, `railway.json` (with a health check on `/api/health`) and `docker-compose.yml`.
+
+**Tested before release:** the production image was built for `linux/amd64` (the same as Railway, Render and Fly) and run with no database. It became healthy in about 10 s. Every page plus the full judge flow (autoplay, ask, vote, feed agents, jump to 2026, audit, `/try`) worked with no errors, and memory settled at **about 485 MB**.
+
+**Before you deploy, check:**
+- [ ] Plan with **≥ 1 GB RAM** (the app uses about 485 MB; a 512 MB free tier will run out of memory and restart).
+- [ ] **Exactly 1 replica / instance.** Judges' sandboxes live in the server's memory, so with 2+ replicas a judge's clicks could reach a different copy and their progress would appear to reset.
+- [ ] `PHYSARUM_STORE=memory` set, unless you're connecting HydraDB. Without it the app still falls back to memory, but only after trying to reach HydraDB first.
+- [ ] Optional: a free `GROQ_API_KEY` for a real AI judge.
 
 ### Option A: Railway (recommended, about 5 minutes)
 
@@ -235,7 +259,21 @@ docker compose up -d      # app + HydraDB, data in a named volume
 
 Change `HYDRADB_AUTH_TOKEN` from its development default before exposing it to the internet.
 
+### If something goes wrong
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Deploy keeps restarting / "Out of memory" / exit code 137 | Instance has < 1 GB RAM | Raise the memory limit to 1 GB |
+| Health check failed | App bound to the wrong port | Don't set `PORT` yourself: the platform sets it and the image listens on it. On Fly, set `internal_port = 8000` |
+| A judge's progress resets randomly | More than one replica | Scale to exactly 1 instance |
+| Badge says *in-memory* though HydraDB was added | `HYDRADB_URL` unreachable or wrong token | Use the HydraDB service's **private** URL and the same `HYDRADB_AUTH_TOKEN`; check the app logs for the `[physarum]` line |
+| HydraDB fails after a restart (`PutMode::Update not yet implemented`) | Known HydraDB local-filesystem bug ([report](docs/hydradb-issue-localfs.md)) | Use S3-compatible storage (as the Railway template does), or `PHYSARUM_STORE=memory` |
+| Waitlist / feedback counts reset after a redeploy | Container disk is wiped on each deploy | Attach a volume and set `PHYSARUM_DATA_DIR` to its mount path |
+| AI judge seems slow | Free-tier rate limits | Expected: live votes are judged first, and agent traffic reuses cached verdicts |
+
 ### After deploying
+
+Open `https://<your-url>/api/health`. You should see `{"ok":true,"store":"memory",…}` (or `"store":"hydradb"`). Then open the landing page in a **private window**, so you see the first-visit welcome card exactly as a judge will.
 
 Put your live URL into the README, `pyproject.toml`, `server.json` and the landing page in one go:
 
