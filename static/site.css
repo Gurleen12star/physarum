@@ -309,6 +309,8 @@ code {
   align-items: center;
   overflow: hidden;
   padding-top: 80px;
+  /* keep hero content clear of the caption (bottom: 26px) and the stats panel, which overlaps by 40px */
+  padding-bottom: 120px;
 }
 #mold {
   position: absolute;
