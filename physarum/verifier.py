@@ -43,7 +43,7 @@ PROVIDERS = {
 
 
 class LLMJudge:
-    """Judges each fact on the answer's path with an LLM ("As of today, is this fact true?").
+    """Judges each fact on the answer's path with an LLM ("As of <the visitor's world year>, was this fact true?").
 
     Providers (first key found): ANTHROPIC_API_KEY, OPENAI_API_KEY (OPENAI_BASE_URL for any compatible
     server), GROQ_API_KEY or GEMINI_API_KEY (both have free tiers). PHYSARUM_JUDGE_MODEL overrides the model.
@@ -108,7 +108,10 @@ class LLMJudge:
             return json.loads(r.read())["choices"][0]["message"]["content"] or ""
 
     def _judge(self, f) -> bool | None:
-        prompt = f"As of today, is this fact true?\n{f[0]} — {f[1]} — {f[2]}\nAnswer with exactly one word: YES or NO."
+        """f = (as_of_year, subject, relation, object)."""
+        prompt = (
+            f"As of {f[0]}, was this fact true?\n{f[1]} — {f[2]} — {f[3]}\nAnswer with exactly one word: YES or NO."
+        )
         try:
             ok = self._ask(prompt).strip().upper().startswith("Y")
         except Exception:
@@ -140,9 +143,9 @@ class LLMJudge:
         CACHE.parent.mkdir(parents=True, exist_ok=True)
         CACHE.write_text(json.dumps(self.cache, indent=0))
 
-    def __call__(self, truth: set, answer: int, path_facts=None, live: bool = False, **_) -> bool:
-        """path_facts: [(subj, rel_label, obj), ...] for the chosen path."""
-        facts = [tuple(map(str, f)) for f in (path_facts or [])]
+    def __call__(self, truth: set, answer: int, path_facts=None, live: bool = False, as_of: int = 2026, **_) -> bool:
+        """path_facts: [(subj, rel_label, obj), ...] for the chosen path, judged as of the session's world year."""
+        facts = [(str(as_of), *map(str, f)) for f in (path_facts or [])]
         verdicts = []
         for f in facts:
             v = self.cache.get("|".join(f))

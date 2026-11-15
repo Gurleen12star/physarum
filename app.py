@@ -231,7 +231,7 @@ def why(qid: int, request: Request):
     s = session(request)
     with s.lock:
         q = svc.question(qid)
-        ranked = s.engine.answers(s.cands(q))
+        ranked = s.engine.answers(s.cands(q, live=True))
         if not ranked:
             return dict(question=q.text, steps=[])
         best = ranked[0]

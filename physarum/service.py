@@ -89,6 +89,49 @@ def name(v):
     return KG.names[v]
 
 
+# ---- path structure cache ----------------------------------------------------------------------
+_paths: dict[tuple, list] = {}
+_paths_lock = threading.Lock()
+
+
+def remember_paths(q, cands):
+    key = (q.s, q.r1, q.r2)
+    struct = [(tuple(c.nodes), tuple((e.eid, e.src, e.dst, e.rel) for e in c.edges)) for c in cands]
+    with _paths_lock:
+        _paths[key] = struct
+    return struct
+
+
+def paths(q):
+    key = (q.s, q.r1, q.r2)
+    with _paths_lock:
+        hit = _paths.get(key)
+    return hit if hit is not None else remember_paths(q, STORE.chain(q.s, q.r1, q.r2))
+
+
+def _warm():
+    """Fetch the path structure of every built-in question once, in the background, at start-up."""
+    t0 = time.time()
+    for q in TRANSFER + UNRELATED + HOS_EVAL + HOS + STREAM:
+        try:
+            paths(q)
+        except Exception as err:  # noqa: BLE001
+            print(f"[physarum] warm-up stopped: {err}")
+            return
+    print(f"[physarum] path cache warm: {len(_paths)} questions in {time.time() - t0:.1f}s")
+    try:  # frozen-graph and RAG baselines for both worlds, so no visitor waits for them
+        s = Session("_warm")
+        s.measure()
+        s.replay()
+        s.measure()
+        print(f"[physarum] baselines ready in {time.time() - t0:.1f}s")
+    except Exception as err:  # noqa: BLE001
+        print(f"[physarum] baseline warm-up failed: {err}")
+
+
+# warm-up thread is started at the end of this module, once Session is defined
+
+
 class Session:
     def __init__(self, sid: str, shared: bool = False):
         self.sid, self.shared = sid, shared
@@ -129,14 +172,35 @@ class Session:
             st = self.edges[e.eid] = EdgeState(e.eid, e.src, e.dst, e.rel)
         return st
 
-    def cands(self, q):
-        """Candidate paths from HydraDB (native algo.SSpaths), seen through this session's state."""
+    def cands(self, q, live: bool = False):
+        """Candidate paths for q, seen through this session's learned state.
+
+        `live=True` (every question a visitor asks) runs algo.SSpaths natively on HydraDB. Bulk work
+        (measurement sweeps, simulated agent traffic) reuses each question's path structure, which never
+        changes while the demo runs; only the learned tube state does, and that lives in the session.
+        The shared colony always reads natively, because its learned state lives on the HydraDB edges.
+        """
+        if self.shared or live:
+            native = STORE.chain(q.s, q.r1, q.r2)
+            remember_paths(q, native)
+            out = []
+            for c in native:
+                if not self.replayed and any(e.eid >= BASE_EDGES for e in c.edges):
+                    continue  # 2026 facts don't exist yet in this session's world
+                out.append(c if self.shared else Candidate(c.nodes, [self._edge(e) for e in c.edges]))
+            return out
         out = []
-        for c in STORE.chain(q.s, q.r1, q.r2):
-            if not self.replayed and any(e.eid >= BASE_EDGES for e in c.edges):
-                continue  # 2026 facts don't exist yet in this session's world
-            out.append(c if self.shared else Candidate(c.nodes, [self._edge(e) for e in c.edges]))
+        for nodes, edges in paths(q):
+            if not self.replayed and any(e[0] >= BASE_EDGES for e in edges):
+                continue
+            out.append(Candidate(list(nodes), [self._edge_t(*e) for e in edges]))
         return out
+
+    def _edge_t(self, eid, src, dst, rel) -> EdgeState:
+        st = self.edges.get(eid)
+        if st is None:
+            st = self.edges[eid] = EdgeState(eid, src, dst, rel)
+        return st
 
     def truth(self, cands):
         t = self.truth_vec
@@ -223,7 +287,7 @@ class Session:
         return v
 
     def view(self, q, flux=None):
-        cands = self.cands(q)
+        cands = self.cands(q, live=True)
         ranked = self.engine.answers(cands)
         static = STATIC.answers(cands)
         truth = self.truth(cands)
@@ -284,7 +348,11 @@ class Session:
         chosen = ans[0]
         truth = self.truth(cands)
         facts = [(name(e.src), KG.rel_label.get(e.rel, e.rel), name(e.dst)) for e in chosen["path"].edges]
-        verdict = VERIFIER(truth, chosen["answer"], path_facts=facts, live=live) if correct is None else bool(correct)
+        verdict = (
+            VERIFIER(truth, chosen["answer"], path_facts=facts, live=live, as_of=2026 if self.replayed else 2020)
+            if correct is None
+            else bool(correct)
+        )
         fb = self.engine.feedback(cands, q.s, chosen["path"], verdict)
         self.write(fb["touched"].values())
         self.registry.update(fb["touched"])
@@ -413,3 +481,6 @@ def reset_session(s: Session) -> Session:
 
 def session_count() -> int:
     return len(_sessions)
+
+
+threading.Thread(target=_warm, daemon=True).start()  # needs Session, so it starts last

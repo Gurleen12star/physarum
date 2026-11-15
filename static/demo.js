@@ -60,6 +60,7 @@ const S = {
 };
 
 function toast(msg, ms = 3800) {
+  if (S.auto && !msg.startsWith("⚠")) return; // during autoplay the caption narrates
   const t = $("#toast");
   t.innerHTML = msg;
   t.classList.add("on");
@@ -509,7 +510,7 @@ function drawDish(v, animate) {
     )
     .force("charge", d3.forceManyBody().strength(-520))
     .force("x", d3.forceX(d => (d.role === "source" ? W * 0.14 : d.role === "hop" ? W * 0.47 : W * 0.8)).strength(0.4))
-    .force("y", d3.forceY(H / 2).strength(0.07))
+    .force("y", d3.forceY(S.auto ? (H - 70) / 2 : H / 2).strength(0.07))
     .force("collide", d3.forceCollide(30));
   const g = svg.append("g");
   const tube = g
@@ -569,7 +570,7 @@ function drawDish(v, animate) {
   S.sim.on("tick", () => {
     nodes.forEach(n => {
       n.x = Math.max(50, Math.min(W - 60, n.x));
-      n.y = Math.max(50, Math.min(H - 40, n.y));
+      n.y = Math.max(50, Math.min(H - (S.auto ? 120 : 40), n.y));
     });
     tube.attr("d", arc);
     flux.attr("d", arc);
@@ -625,7 +626,7 @@ async function drawColony() {
     )
     .force("charge", d3.forceManyBody().strength(-40).distanceMax(260))
     .force("x", d3.forceX(W / 2).strength(0.06))
-    .force("y", d3.forceY(H / 2).strength(0.09))
+    .force("y", d3.forceY(S.auto ? (H - 110) / 2 : H / 2).strength(0.09))
     .force("collide", d3.forceCollide(5));
   const g = svg.append("g");
   const st = links.filter(l => l.rej > l.acc),
@@ -663,7 +664,7 @@ async function drawColony() {
   S.sim.on("tick", () => {
     nodes.forEach(n => {
       n.x = Math.max(24, Math.min(W - 24, n.x));
-      n.y = Math.max(50, Math.min(H - 30, n.y));
+      n.y = Math.max(50, Math.min(H - (S.auto ? 150 : 30), n.y));
     });
     [thr, tub].forEach(s =>
       s
@@ -692,13 +693,13 @@ function drawTimelapse(tl) {
     .force("link", d3.forceLink(links).distance(30).strength(0.45))
     .force("charge", d3.forceManyBody().strength(-34).distanceMax(240))
     .force("x", d3.forceX(W / 2).strength(0.06))
-    .force("y", d3.forceY(H / 2 + 10).strength(0.09))
+    .force("y", d3.forceY(S.auto ? (H - 120) / 2 : H / 2 + 10).strength(0.09))
     .force("collide", d3.forceCollide(5))
     .stop();
   for (let i = 0; i < 260; i++) sim.tick();
   nodes.forEach(n => {
     n.x = Math.max(24, Math.min(W - 24, n.x));
-    n.y = Math.max(56, Math.min(H - 30, n.y));
+    n.y = Math.max(56, Math.min(H - (S.auto ? 150 : 30), n.y));
   });
   svg
     .append("defs")
@@ -933,6 +934,13 @@ function redrawAll() {
   else if (S.mode === "c") drawColony();
 }
 window.addEventListener("resize", redrawAll);
+window.addEventListener(
+  "scroll",
+  () => {
+    if ($("#tour") && $("#tour").classList.contains("on")) showTip();
+  },
+  { passive: true }
+);
 window.addEventListener("themechange", redrawAll);
 
 /* ---------- live HydraDB log ---------- */
@@ -1093,6 +1101,32 @@ let stopAuto = false;
 function cap(html, prog) {
   $("#capTxt").innerHTML = html;
   $("#capProg").style.width = prog + "%";
+  placeCaption();
+}
+// The caption sits at the bottom of the graph area (never over the charts), above the time-lapse bar.
+function placeCaption() {
+  const c = $("#caption");
+  if (!c || !c.classList.contains("on")) return;
+  const r = $("#dish").getBoundingClientRect();
+  const lift = $("#tlapse").classList.contains("on") ? 56 : 12;
+  const w = Math.max(280, Math.min(760, r.width - 24));
+  const bottom = Math.min(innerHeight - 12, Math.max(r.bottom - lift, c.offsetHeight + 12));
+  Object.assign(c.style, {
+    left: r.left + r.width / 2 + "px",
+    width: w + "px",
+    top: bottom - c.offsetHeight + "px",
+    bottom: "auto",
+  });
+}
+addEventListener("scroll", placeCaption, { passive: true });
+addEventListener("resize", placeCaption);
+// On short screens the page scrolls: bring what the caption talks about into view (no-op when it fits).
+function focusOn(sel, block = "nearest") {
+  const el = $(sel);
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  if (r.top >= 0 && r.bottom <= innerHeight) return; // already fully visible
+  el.scrollIntoView({ behavior: "smooth", block });
 }
 async function autoplay() {
   if (S.auto) return;
@@ -1100,6 +1134,8 @@ async function autoplay() {
   stopAuto = false;
   closeWelcome();
   $("#caption").classList.add("on");
+  document.body.classList.add("autoplaying");
+  placeCaption();
   const chk = () => {
     if (stopAuto) throw new Error("stopped");
   };
@@ -1133,6 +1169,7 @@ async function autoplay() {
     chk();
     await feed(200);
     chk();
+    focusOn("#chartL");
     cap(
       `On questions it was <em>never asked</em>, Physarum jumped from ${pct(S.curve[0].transfer)} to <b>${pct(S.curve[S.curve.length - 1].transfer)}</b>. Hybrid RAG stays at <b>${pct(S.curve[S.curve.length - 1].rag_transfer)}</b>: a false fact looks exactly as relevant as a true one.`,
       35
@@ -1145,6 +1182,7 @@ async function autoplay() {
     );
     await sleep(3500);
     chk();
+    focusOn(".center", "start");
     await doReplay();
     await select(milne.qid);
     chk();
@@ -1175,6 +1213,7 @@ async function autoplay() {
     chk();
     await select(milne.qid);
     showTab("world");
+    focusOn("#chartR");
     {
       const L = S.replayLog[S.replayLog.length - 1] || {};
       cap(
@@ -1185,6 +1224,7 @@ async function autoplay() {
     await sleep(5500);
     chk();
     showTab("why");
+    focusOn(".center", "start");
     cap(
       "<em>Why?</em> Every tube on the path, its length L, diameter D, and every vote that shaped it. Fully explainable.",
       74
@@ -1205,26 +1245,29 @@ async function autoplay() {
     await sleep(1500);
     await doWipe();
     chk();
-    cap(`…accuracy collapses: ${$("#wipeRes").innerText.split("\n")[0]}. Now restore from HydraDB…`, 95);
+    cap(`…accuracy collapses: ${$("#wipeRes").innerText.split("\n")[0]}. Now restore it…`, 95);
     await sleep(3200);
     await doRestore();
     chk();
-    await sleep(1500);
-    $("#tC").click();
-    await sleep(1800);
-    if (TL) {
-      $("#tlPlay").click();
-    }
     cap(
-      "…and it's back, identical. Here's the whole run as a time-lapse: highways growing, false facts starving. <b>A graph that improves itself, natively on HydraDB.</b> Your turn: ask it anything.",
+      "…and it's back, identical. <b>A graph that improves itself, natively on HydraDB.</b> Last: the whole run as a time-lapse. Your turn after that: ask it anything.",
       100
     );
-    await sleep(9000);
-    $("#tQ").click();
+    await sleep(5200);
+    chk();
+    // hand the full dish to the time-lapse: autoplay ends here, the replay keeps playing
+    $("#caption").classList.remove("on");
+    document.body.classList.remove("autoplaying");
+    S.auto = false;
+    focusOn(".center", "start");
+    $("#tC").click();
+    await sleep(1800);
+    if (TL) $("#tlPlay").click();
   } catch (e) {
     if (e.message !== "stopped") toast("⚠ " + e.message, 6000);
   }
   $("#caption").classList.remove("on");
+  document.body.classList.remove("autoplaying");
   S.auto = false;
   S.busy = false;
 }
