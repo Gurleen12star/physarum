@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Live demo · Physarum on HydraDB</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23f4b740'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/site.css" />
+    <link rel="stylesheet" href="/static/demo.css" />
+    <script src="/static/d3.min.js"></script>
+  </head>
+  <body class="app">
+    <header class="topbar" id="topbar">
+      <a class="brand" href="/"><span class="mark"></span>Physarum<span class="for">live demo</span></a>
+      <div class="badges" id="badges">
+        <span class="badge" id="storeBadge"><i class="dot"></i>connecting…</span>
+        <span class="badge" id="verifierBadge">verifier: –</span>
+        <span class="badge mono" id="verdictBadge">0 verdicts</span>
+        <span
+          class="seg"
+          id="modeSeg"
+          title="Your sandbox is private to this tab. The shared colony writes its learning to HydraDB for everyone."
+        >
+          <a id="segSandbox" href="/demo">My sandbox</a><a id="segShared" href="/demo?shared=1">Shared colony</a>
+        </span>
+      </div>
+      <div class="tb-actions">
+        <button
+          class="theme-toggle"
+          id="themeToggle"
+          aria-label="Switch between light and dark theme"
+          title="Light / dark"
+        >
+          <svg
+            class="moon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg
+          ><svg
+            class="sun"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <circle cx="12" cy="12" r="4.5" />
+            <path
+              d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+            />
+          </svg>
+        </button>
+        <button class="btn ghost sm" id="bTour">? Tour</button>
+        <button class="btn ghost sm" id="bAuto">▶ Autoplay</button>
+        <button class="btn ghost sm" id="bReset" title="Forget everything, undo the 2026 replay">Reset</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <aside class="mission" id="mission">
+        <div class="m-head">
+          <div class="kicker">Mission</div>
+          <div class="m-sub">Six steps, about two minutes.</div>
+        </div>
+
+        <div class="mstep" id="s1">
+          <div class="ms-n">1</div>
+          <div class="ms-b">
+            <h4>Ask the graph anything</h4>
+            <p>Type a question in plain English, or pick one. 2026 ones changed in the real world.</p>
+            <form id="askForm" autocomplete="off">
+              <input type="search" id="search" placeholder="e.g. Who is the king of England?" /><button
+                class="askgo"
+                type="submit"
+                title="Ask"
+              >
+                ↵
+              </button>
+            </form>
+            <div class="interp mono" id="interp"></div>
+            <div class="chips2" id="chips"></div>
+            <div class="qlist" id="qlist"></div>
+          </div>
+        </div>
+
+        <div class="mstep" id="s2">
+          <div class="ms-n">2</div>
+          <div class="ms-b">
+            <h4>Teach it</h4>
+            <p>Vote on the answer. One bit is all it learns from.</p>
+            <button class="btn ghost sm full" id="bSuggest">🎯 Show me what you're unsure about</button>
+          </div>
+        </div>
+
+        <div class="mstep" id="s3">
+          <div class="ms-n">3</div>
+          <div class="ms-b">
+            <h4>Let agents use it</h4>
+            <p>200 questions from simulated agents, each judged by the verifier.</p>
+            <button class="btn primary sm full" id="bFeed">Feed 200 agent questions</button>
+          </div>
+        </div>
+
+        <div class="mstep" id="s4">
+          <div class="ms-n">4</div>
+          <div class="ms-b">
+            <h4>Jump to 2026</h4>
+            <p>Write what really changed since 2020 into the graph. Old facts stay, like a real pipeline.</p>
+            <button class="btn primary sm full" id="bReplay">Replay 2020 → 2026</button>
+            <div class="events" id="events"></div>
+          </div>
+        </div>
+
+        <div class="mstep" id="s5">
+          <div class="ms-n">5</div>
+          <div class="ms-b">
+            <h4>Let it audit itself</h4>
+            <p>Which of its own facts does it no longer trust?</p>
+            <button class="btn ghost sm full" id="bAudit">Run self-audit</button>
+          </div>
+        </div>
+
+        <div class="mstep" id="s6">
+          <div class="ms-n">6</div>
+          <div class="ms-b">
+            <h4>Prove it's the graph</h4>
+            <p>Wipe what it learned, then restore it.</p>
+            <div class="row2">
+              <button class="btn ghost sm" id="bWipe">Wipe memory</button
+              ><button class="btn ghost sm" id="bRestore" disabled>Restore</button>
+            </div>
+            <div class="wipe-res mono" id="wipeRes"></div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="center">
+        <div class="answer" id="answerCard">
+          <div class="a-q" id="qText">Pick a question to start.</div>
+          <div class="a-rows">
+            <div class="a-row" id="rowRag">
+              <span class="who">Hybrid RAG</span><span class="ans" id="aRag">–</span
+              ><span class="verdict" id="vRag"></span><span class="ctx mono" id="ctxRag"></span>
+            </div>
+            <div class="a-row" id="rowStatic">
+              <span class="who">Frozen graph</span><span class="ans" id="aStatic">–</span
+              ><span class="verdict" id="vStatic"></span>
+            </div>
+            <div class="a-row hl" id="rowPhys">
+              <span class="who">Physarum</span><span class="ans" id="aPhys">–</span
+              ><span class="verdict" id="vPhys"></span><span class="ctx mono" id="ctxPhys"></span>
+              <span class="conf"
+                ><span class="cbar"><i id="confBar"></i></span><span class="mono" id="confTxt"></span></span
+              ><span class="unsure" id="unsure">unsure: vote here</span>
+            </div>
+          </div>
+          <div class="a-foot">
+            <span class="mono dim" id="truthTxt"></span>
+            <div class="votes" id="votes">
+              <button class="vote up" id="bUp" title="The answer is right">👍</button>
+              <button class="vote down" id="bDown" title="The answer is wrong">👎</button>
+              <button class="vote judge" id="bJudge" title="Let the verifier judge">🤖 verifier</button>
+            </div>
+          </div>
+        </div>
+        <div class="dish" id="dish">
+          <div class="dtabs"><button class="on" id="tQ">This question</button><button id="tC">The colony</button></div>
+          <div class="tlapse" id="tlapse">
+            <button id="tlPlay" title="Play the time-lapse">▶</button
+            ><input type="range" id="tlSlider" min="0" max="0" value="0" /><span class="mono" id="tlLabel"></span>
+          </div>
+          <svg id="svg"></svg>
+          <div class="legend mono">
+            <span class="l-fed">fed tube</span><span class="l-st">starved tube</span
+            ><span class="l-new">new 2026 fact</span><span class="l-flux">flow after a vote</span>
+          </div>
+          <div class="toast" id="toast"></div>
+        </div>
+      </section>
+
+      <aside class="side" id="side">
+        <div class="stabs" id="stabs">
+          <button class="on" data-t="why">Why?</button><button data-t="audit">Self-audit</button
+          ><button data-t="world">Real world</button>
+        </div>
+        <div class="spane on" id="p-why">
+          <div class="empty">Pick a question to see why the graph believes its answer.</div>
+        </div>
+        <div class="spane" id="p-audit"><div class="empty">Run the self-audit (step 5).</div></div>
+        <div class="spane" id="p-world">
+          <div class="empty">Replay 2020 → 2026 (step 4) to see the real changes and how fast the graph heals.</div>
+        </div>
+      </aside>
+
+      <section class="bottom">
+        <div class="panel">
+          <div class="ph">Learning curve <span class="dim">· questions it was never asked</span></div>
+          <svg id="chartL"></svg>
+        </div>
+        <div class="panel">
+          <div class="ph">Real-world heal <span class="dim">· 2026 head-of-state questions</span></div>
+          <svg id="chartR"></svg>
+        </div>
+        <div class="panel log" id="logPanel">
+          <div class="ph"><span id="logTitle">HydraDB, live</span> <span class="dim" id="logCount"></span></div>
+          <div class="loglist mono" id="log"></div>
+        </div>
+      </section>
+    </main>
+
+    <div class="caption" id="caption">
+      <div class="cap-txt" id="capTxt"></div>
+      <div class="cap-bar"><i id="capProg"></i></div>
+      <button class="cap-stop" id="capStop">Stop</button>
+    </div>
+    <div class="tour" id="tour">
+      <div class="spot" id="spot"></div>
+      <div class="tip" id="tip">
+        <div class="tip-n mono" id="tipN"></div>
+        <h4 id="tipH"></h4>
+        <p id="tipP"></p>
+        <div class="tip-a">
+          <button class="btn ghost sm" id="tipSkip">Skip</button><button class="btn ghost sm" id="tipBack">Back</button
+          ><button class="btn primary sm" id="tipNext">Next</button>
+        </div>
+      </div>
+    </div>
+    <div class="welcome" id="welcome">
+      <div class="w-card">
+        <span class="mark big"></span>
+        <h2>Welcome to the live demo</h2>
+        <p>
+          This graph lives in HydraDB: 40,198 real Wikidata facts, 3,655 of them human-verified as false. You'll teach
+          it, jump it from 2020 to 2026, and watch it heal.
+        </p>
+        <div class="w-actions">
+          <button class="btn primary lg" id="wAuto"><span class="play">▶</span> Watch it (90 s)</button
+          ><button class="btn ghost lg" id="wTour">Guided tour</button>
+        </div>
+        <button class="w-skip" id="wSkip">I'll explore on my own</button>
+      </div>
+    </div>
+    <script src="/static/demo.js"></script>
+  </body>
+</html>

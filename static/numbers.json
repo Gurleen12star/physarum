@@ -1,0 +1,171 @@
+{
+ "generated": "2026-11-15 06:21 UTC",
+ "store": "reference store (results identical to HydraDB)",
+ "verifier": "simulated, 10% noise",
+ "learning": {
+  "seeds": 5,
+  "static": {
+   "transfer": 0.3209,
+   "unrelated": 0.3773,
+   "transfer_std": 0.0101
+  },
+  "evidence": {
+   "transfer": 0.8606,
+   "unrelated": 0.892,
+   "transfer_std": 0.0247
+  },
+  "physarum": {
+   "transfer": 0.8486,
+   "unrelated": 0.872,
+   "transfer_std": 0.0223
+  }
+ },
+ "drift": {
+  "at": [
+   250,
+   1000,
+   2500
+  ],
+  "static": [
+   0.45,
+   0.45,
+   0.45
+  ],
+  "evidence": [
+   0.38,
+   0.46,
+   0.58
+  ],
+  "physarum": [
+   0.59,
+   0.76,
+   0.87
+  ]
+ },
+ "replay": {
+  "physarum_after": 0.8525,
+  "static_after": 0.0442,
+  "evidence_after": 0.7552,
+  "verdicts": 600,
+  "questions": 339,
+  "countries": 3,
+  "curve": [
+   {
+    "v": 0,
+    "physarum": 0.3363
+   },
+   {
+    "v": 100,
+    "physarum": 0.7611
+   },
+   {
+    "v": 200,
+    "physarum": 0.8407
+   },
+   {
+    "v": 300,
+    "physarum": 0.8053
+   },
+   {
+    "v": 400,
+    "physarum": 0.8407
+   },
+   {
+    "v": 500,
+    "physarum": 0.8555
+   },
+   {
+    "v": 600,
+    "physarum": 0.8525
+   }
+  ],
+  "votes_to_heal_median": 5.0,
+  "healed": 2,
+  "events": [
+   {
+    "event": "Accession of Charles III",
+    "date": "2022-09-08",
+    "new": "Charles III",
+    "old": "Elizabeth II",
+    "countries": [
+     "United Kingdom",
+     "England",
+     "Australia",
+     "Canada",
+     "New Zealand",
+     "Antigua and Barbuda",
+     "Bahamas",
+     "Belize",
+     "Grenada",
+     "Jamaica",
+     "Papua New Guinea",
+     "Saint Kitts and Nevis",
+     "Saint Lucia",
+     "Saint Vincent and the Grenadines",
+     "Solomon Islands",
+     "Tuvalu"
+    ],
+    "source": "https://www.wikidata.org/wiki/Q43274"
+   },
+   {
+    "event": "Petr Pavel becomes President of the Czech Republic",
+    "date": "2023-03-09",
+    "new": "Petr Pavel",
+    "old": "V\u00e1clav Havel",
+    "countries": [
+     "Czech Republic"
+    ],
+    "source": "https://en.wikipedia.org/wiki/Petr_Pavel"
+   },
+   {
+    "event": "Election of Pope Leo XIV",
+    "date": "2025-05-08",
+    "new": "Pope Leo XIV",
+    "old": "John Paul II",
+    "countries": [
+     "Vatican City"
+    ],
+    "source": "https://en.wikipedia.org/wiki/Pope_Leo_XIV"
+   }
+  ]
+ },
+ "audit": {
+  "precision": 0.7957,
+  "recall": 0.3541,
+  "flagged": 93,
+  "examined": 825,
+  "base_rate": 0.2533,
+  "lift": 3.14
+ },
+ "removal": {
+  "learned": 0.86,
+  "wiped": 0.27,
+  "restored": 0.86
+ },
+ "active": {
+  "random": 0.78,
+  "active": 0.73
+ },
+ "rag": {
+  "name": "hybrid RAG (vector + keyword) \u00b7 spaCy en_core_web_md (300-d) \u00b7 top-10",
+  "transfer": 0.37,
+  "unrelated": 0.24,
+  "found": 0.67,
+  "acc_given_found": 0.5522,
+  "hos_2020": 0.6608,
+  "hos_2026": 0.174,
+  "hos_2026_given_found": 0.2369,
+  "context_tokens": 180,
+  "physarum_tokens": 18
+ },
+ "engineering": {
+  "edges_per_verdict": 2.56,
+  "requests_per_verdict": 2,
+  "decay_writes": 0,
+  "naive_decay_writes": 40216,
+  "extra_props_per_edge": 4,
+  "hydradb": null
+ },
+ "verifier_check": null,
+ "seconds": 63.7
+}

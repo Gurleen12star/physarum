@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Physarum: the knowledge graph that heals itself · built on HydraDB</title>
+    <meta
+      name="description"
+      content="A learning layer for HydraDB. Every thumbs-up or thumbs-down on an agent's answer becomes slime-mould physics on your edges: right answers grow highways, hallucinated and outdated facts starve."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23f4b740'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/site.css" />
+  </head>
+  <body class="landing">
+    <nav class="nav">
+      <a class="brand" href="/"><span class="mark"></span>Physarum<span class="for">for HydraDB</span></a>
+      <div class="links">
+        <a href="#how">How it works</a><a href="#why">Why Physarum</a><a href="#evidence">Evidence</a
+        ><a href="#hydradb">Built on HydraDB</a><a href="#sdk">Use it</a><a href="#why-now">Why now</a
+        ><a href="#use-cases">Use cases</a><a href="/try">Playground</a><a href="#faq">FAQ</a>
+      </div>
+      <div class="cta">
+        <button
+          class="theme-toggle"
+          id="themeToggle"
+          aria-label="Switch between light and dark theme"
+          title="Light / dark"
+        >
+          <svg
+            class="moon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg
+          ><svg
+            class="sun"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <circle cx="12" cy="12" r="4.5" />
+            <path
+              d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+            />
+          </svg></button
+        ><a class="btn ghost sm" href="https://github.com/" id="ghLink" target="_blank" rel="noopener">GitHub</a
+        ><a class="btn primary sm" href="/demo">Open live demo →</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <canvas id="mold" aria-hidden="true"></canvas>
+      <div class="hero-fade"></div>
+      <div class="hero-inner">
+        <div class="eyebrow reveal">
+          <span class="pulse"></span> HydraDB Hackathon · Track 1 · A graph that improves itself
+        </div>
+        <h1 class="reveal">Knowledge graphs go stale.<br /><em>This one heals itself.</em></h1>
+        <p class="lede reveal">
+          Physarum is a learning layer for HydraDB. Every 👍 or 👎 on an agent's answer becomes slime-mould physics on
+          your edges: paths that lead to right answers thicken into highways, while hallucinated and outdated facts
+          starve. No labels, no training run.
+        </p>
+        <div class="hero-cta reveal">
+          <a class="btn primary lg" href="/demo?autoplay=1"
+            ><span class="play">▶</span> Watch the 90-second live demo</a
+          >
+          <a class="btn ghost lg" href="/try">Try it on your graph</a>
+        </div>
+        <div class="chips reveal">
+          <span class="chip"
+            ><i>●</i> Runs natively on HydraDB · <code>algo.SSpaths</code> + <code>weightProp</code></span
+          >
+          <span class="chip"><i>●</i> Real Wikidata changes, 2020 → 2026</span>
+          <span class="chip"><i>●</i> Convergence proven (SODA 2012)</span>
+        </div>
+      </div>
+      <div class="hero-caption mono">
+        live simulation · Jones (2010) Physarum agent model · 9,000 agents foraging between entities
+      </div>
+    </header>
+
+    <section class="stats" id="stats">
+      <div class="stat reveal">
+        <div class="num" data-k="transfer">–</div>
+        <div class="lbl">
+          questions it was <b>never asked</b>, answered right<br /><span data-k="transfer_static">frozen graph: –</span>
+        </div>
+      </div>
+      <div class="stat reveal">
+        <div class="num" data-k="heal">–</div>
+        <div class="lbl">
+          right on <b>real 2020→2026 changes</b><br /><span data-k="heal_static">frozen graph: –</span>
+        </div>
+      </div>
+      <div class="stat reveal">
+        <div class="num" data-k="audit">–</div>
+        <div class="lbl">
+          precision when it <b>flags its own false facts</b><br /><span data-k="audit_lift">–</span>
+        </div>
+      </div>
+      <div class="stat reveal">
+        <div class="num" data-k="decay">0</div>
+        <div class="lbl">database writes to forget<br /><span data-k="decay_naive">instead of one per edge</span></div>
+      </div>
+    </section>
+
+    <section class="problem wrap" id="problem">
+      <div class="split">
+        <div class="reveal">
+          <div class="kicker">The problem</div>
+          <h2>Your graph still thinks it's 2020.</h2>
+          <p>
+            Graphs are built once by extractors and then frozen. When the world changes, the new fact is appended but
+            the old one is never removed, and the hallucinated facts stay too. Retrieval can't tell which is current, so
+            agents confidently answer with yesterday's truth.
+          </p>
+          <p>
+            Vector search makes it worse: a false or outdated fact is <em>exactly as similar</em> to the question as the
+            true one. Similarity isn't truth, and it isn't time.
+          </p>
+          <p class="dim">
+            Physarum closes the loop. The signal is the cheapest one you already have: was the answer right?
+          </p>
+        </div>
+        <div class="qa-card reveal">
+          <div class="qa-q mono">"Who is the head of state of A. A. Milne's country?"</div>
+          <div class="qa-row bad">
+            <span class="who">Vector RAG</span><span class="ans">Elizabeth II</span
+            ><span class="tag">similar ≠ current</span>
+          </div>
+          <div class="qa-row bad">
+            <span class="who">Frozen graph</span><span class="ans">Elizabeth II</span
+            ><span class="tag">outdated since 2022</span>
+          </div>
+          <div class="qa-row good">
+            <span class="who">Physarum</span><span class="ans">Charles III</span
+            ><span class="tag">healed from 👍/👎</span>
+          </div>
+          <div class="qa-foot mono">United Kingdom ─ head of state ─▶ <s>Elizabeth II</s> · <b>Charles III</b></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="market wrap" id="why-now">
+      <div class="kicker reveal">Why now</div>
+      <h2 class="reveal">Teams are already hitting this <em>in production</em>.</h2>
+      <div class="cards evid">
+        <a
+          class="card reveal"
+          href="https://slite.com/learn/dangers-of-stale-documentation"
+          target="_blank"
+          rel="noopener"
+        >
+          <div class="big">76%</div>
+          <p>
+            of 143 founders, operators and engineers surveyed by Slite had seen an AI tool at work pick up an outdated
+            doc and answer wrongly.
+          </p>
+          <div class="src mono">Slite survey, 2026 ↗</div>
+        </a>
+        <a class="card reveal" href="https://github.com/mem0ai/mem0/issues/4956" target="_blank" rel="noopener">
+          <div class="big">~20</div>
+          <p>
+            comments on an open Mem0 issue: after v3, an old employer or city can outrank the new one. Proposed fixes
+            are still unmerged.
+          </p>
+          <div class="src mono">mem0ai/mem0 #4956 ↗</div>
+        </a>
+        <a
+          class="card reveal"
+          href="https://www.thoughtworks.com/radar/platforms/graphiti"
+          target="_blank"
+          rel="noopener"
+        >
+          <div class="big">Trial</div>
+          <p>
+            Thoughtworks moved a temporal knowledge graph to "Trial" on its Technology Radar because flat vector stores
+            can't track how facts change.
+          </p>
+          <div class="src mono">Thoughtworks Radar, Apr 2026 ↗</div>
+        </a>
+        <a
+          class="card reveal"
+          href="https://tianpan.co/blog/2026-05-07-stale-docs-confident-wrong-answers-rag-knowledge-base"
+          target="_blank"
+          rel="noopener"
+        >
+          <div class="big">6.5×</div>
+          <p>
+            more hallucination when retrieved context is outdated or insufficient: from 10.2% to 66.1%, per Google
+            Research as reported by Tian Pan.
+          </p>
+          <div class="src mono">tianpan.co ↗</div>
+        </a>
+      </div>
+
+      <div class="vs reveal">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Mem0</th>
+              <th>Graphiti (Zep)</th>
+              <th class="us">Physarum</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>How a stale fact is caught</td>
+              <td>An LLM compares each new fact on write</td>
+              <td>An LLM spots contradictions on ingest</td>
+              <td class="us">Wrong answers starve the path that produced them</td>
+            </tr>
+            <tr>
+              <td>LLM call per write</td>
+              <td>Yes</td>
+              <td>Yes</td>
+              <td class="us">No: physics on the edges</td>
+            </tr>
+            <tr>
+              <td>Learns from 👍/👎 on answers</td>
+              <td>Not built in</td>
+              <td>Not built in</td>
+              <td class="us">Yes, one bit is enough</td>
+            </tr>
+            <tr>
+              <td>Catches wrong facts nobody re-stated</td>
+              <td>No</td>
+              <td>No</td>
+              <td class="us">Yes: 80% precision self-audit</td>
+            </tr>
+            <tr>
+              <td>Multi-hop answers</td>
+              <td>Flat memories</td>
+              <td>Graph search</td>
+              <td class="us">Native paths on HydraDB</td>
+            </tr>
+            <tr>
+              <td>History kept</td>
+              <td>Version history</td>
+              <td>Bi-temporal edges</td>
+              <td class="us">Append-only; old facts just starve</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="dim small">
+          Complementary, not either/or: Mem0 and Graphiti decide what to write. Physarum learns which written facts to
+          trust from how answers land, and can sit on top of any graph they build.
+        </p>
+      </div>
+    </section>
+
+    <section class="how wrap" id="how">
+      <div class="kicker reveal">How it works</div>
+      <h2 class="reveal">Three steps on every answer.</h2>
+      <div class="steps">
+        <div class="step reveal">
+          <div class="sn mono">01 · Traverse</div>
+          <h3>One native HydraDB call</h3>
+          <p>
+            <code>algo.SSpaths</code> ranks candidate paths by learned resistance <code>r = L/D</code>, stored on each
+            edge as <code>weightProp</code>.
+          </p>
+          <svg viewBox="0 0 200 70" class="mini">
+            <circle cx="20" cy="35" r="7" class="n src" />
+            <path d="M27 35 C70 5,90 5,110 20" class="e thick" />
+            <path d="M27 35 C70 65,90 65,110 50" class="e thin" />
+            <circle cx="115" cy="20" r="5" class="n" />
+            <circle cx="115" cy="50" r="5" class="n" />
+            <path d="M120 20 L178 35" class="e thick" />
+            <path d="M120 50 L178 35" class="e thin" />
+            <circle cx="182" cy="35" r="7" class="n ans" />
+          </svg>
+        </div>
+        <div class="step reveal">
+          <div class="sn mono">02 · Verdict</div>
+          <h3>One bit of feedback</h3>
+          <p>
+            A user's 👍/👎, or an LLM judge checking each fact. That's the only supervision; it's noisy, and that's
+            fine.
+          </p>
+          <div class="votes"><span>👍</span><span>👎</span><span class="mono">🤖 judge</span></div>
+        </div>
+        <div class="step reveal">
+          <div class="sn mono">03 · Physics</div>
+          <h3>Tubes grow or starve</h3>
+          <p>
+            Food at the right answer → Kirchhoff flow → tubes that carried it thicken. Wrong answers light up their path
+            and it retracts. Written back in one batched query.
+          </p>
+          <svg viewBox="0 0 200 70" class="mini flowsvg">
+            <path d="M15 35 C60 10,140 10,185 35" class="e thick" />
+            <path d="M15 35 C60 10,140 10,185 35" class="flow" />
+            <path d="M15 35 C60 60,140 60,185 35" class="e starve" />
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="why wrap" id="why">
+      <div class="kicker reveal">Why Physarum</div>
+      <h2 class="reveal">A graph that gets sharper every time it's used.</h2>
+      <div class="cards">
+        <div class="card reveal">
+          <div class="cn mono">01</div>
+          <h3>Learns from one bit</h3>
+          <p>
+            No labels, no training pipeline. A thumbs-up or thumbs-down on the final answer is enough; Kirchhoff's laws
+            decide which edges earned the credit.
+          </p>
+        </div>
+        <div class="card reveal">
+          <div class="cn mono">02</div>
+          <h3>Heals when the world changes</h3>
+          <p>
+            Plastic tubes re-weigh old evidence on every use, so a superseded fact is unlearned in a few votes, not
+            hundreds. Shown live on real 2020→2026 changes.
+          </p>
+        </div>
+        <div class="card reveal">
+          <div class="cn mono">03</div>
+          <h3>Audits its own facts</h3>
+          <p>
+            Tubes that keep starving are facts the graph stopped trusting. Physarum hands you the list, checked against
+            human-verified labels.
+          </p>
+        </div>
+        <div class="card reveal">
+          <div class="cn mono">04</div>
+          <h3>Knows when it's unsure</h3>
+          <p>
+            When flow splits almost evenly between answers, it flags the answer as uncertain, so users and agents know
+            which answers to double-check.
+          </p>
+        </div>
+        <div class="card reveal">
+          <div class="cn mono">05</div>
+          <h3>Explains every answer</h3>
+          <p>Click any answer to see the path, the flow through each tube, and every verdict that shaped it.</p>
+        </div>
+        <div class="card reveal">
+          <div class="cn mono">06</div>
+          <h3>Forgetting is free</h3>
+          <p>
+            Evaporation is a single global scale factor: zero database writes, instead of touching every edge on every
+            step.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="evidence wrap" id="evidence">
+      <div class="kicker reveal">Evidence</div>
+      <h2 class="reveal">Real data. Real changes. Every number reproducible.</h2>
+      <p class="sub reveal">
+        CoDEx (Wikidata): 2,034 entities, 40,198 edges, including 3,655 facts that humans verified as false. Agents ask
+        popular questions; a verifier judges each answer. Regenerate everything with <code>make numbers</code>.
+      </p>
+      <div class="bench" id="bench"></div>
+      <div class="table-wrap reveal">
+        <table class="cmp">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Hybrid RAG<br /><span style="font-weight: 400">vector + keyword</span></th>
+              <th>Frozen graph</th>
+              <th>Count-only learner</th>
+              <th class="hl">Physarum</th>
+            </tr>
+          </thead>
+          <tbody id="cmpBody"></tbody>
+        </table>
+      </div>
+      <p class="foot dim mono" id="numbersFoot">numbers: loading…</p>
+    </section>
+
+    <section class="hydra wrap" id="hydradb">
+      <div class="split">
+        <div class="reveal">
+          <div class="kicker">Built on HydraDB</div>
+          <h2>Two queries. Their engine. It learns.</h2>
+          <p>
+            Learned state lives on HydraDB edges, in object storage, so every agent and every app instance reading the
+            graph benefits from every verdict, and it survives restarts.
+          </p>
+          <table class="mini-table">
+            <tr>
+              <th>Capability</th>
+              <th>HydraDB feature</th>
+              <th>Without it</th>
+            </tr>
+            <tr>
+              <td>Rank by learned resistance</td>
+              <td><code>algo.SSpaths</code> + <code>weightProp</code></td>
+              <td>Pull every path to the client and sort there</td>
+            </tr>
+            <tr>
+              <td>Learn in one round trip</td>
+              <td>Batched <code>UNWIND … MERGE … SET</code></td>
+              <td>One write per edge per verdict</td>
+            </tr>
+            <tr>
+              <td>Shared, durable learning</td>
+              <td>Graph on object storage</td>
+              <td>Per-process memory that's lost on restart</td>
+            </tr>
+            <tr>
+              <td>Append new facts live</td>
+              <td>Typed edges, <code>MERGE</code> by id</td>
+              <td>Rebuild the index</td>
+            </tr>
+          </table>
+        </div>
+        <pre
+          class="code reveal"
+        ><code><span class="c">// 1 · retrieve: ranked inside HydraDB by what the graph has learned</span>
+CALL algo.SSpaths({
+  sourceNode: $person, relTypes: ['P27','P35'],
+  maxLen: 2, weightProp: <span class="k">'r'</span>       <span class="c">// r = L / D</span>
+}) YIELD path RETURN path
+
+<span class="c">// 2 · learn: one batched write per verdict</span>
+UNWIND $rows AS row
+MATCH (s:Entity {id: row.s}), (d:Entity {id: row.d})
+MERGE (s)-[r:P35 {id: row.e}]->(d)
+SET r.R = row.R, r.acc = row.acc,
+    r.rej = row.rej, r.r = row.r
+
+<span class="c"># python</span>
+from physarum import Engine
+answer = engine.answers(store.chain(s, 'P27', 'P35'))[0]
+engine.feedback(cands, s, answer['path'], correct=True)</code></pre>
+      </div>
+    </section>
+
+    <section class="byog wrap" id="sdk">
+      <div class="split">
+        <pre class="code reveal"><code><span class="c"># pip install physarum-graph</span>
+from physarum import Graph
+
+g = Graph.from_csv(<span class="k">"facts.csv"</span>)        <span class="c"># or hydradb_url="https://…"</span>
+a = g.ask(<span class="k">"Bob"</span>, <span class="k">"reports_to"</span>, <span class="k">"leads"</span>)
+<span class="c"># → Payments   (Bob moved teams last week)</span>
+
+g.feedback(a, correct=False)
+<span class="c"># → Growth     healed after one 👎</span>
+
+g.audit()
+<span class="c"># → [('Bob','reports_to','Carol')]   the stale fact</span></code></pre>
+        <div class="reveal">
+          <div class="kicker">Bring your own graph</div>
+          <h2>Three lines. <em>Any</em> graph.</h2>
+          <p>
+            Org charts, product catalogues, incident runbooks, agent memory: anything stored as facts goes stale. Load
+            it from a CSV or point at HydraDB, ask multi-hop questions, and pass back a 👍 or 👎. Your agents can do the
+            voting themselves through the MCP server.
+          </p>
+          <p class="dim">
+            Ships with an SDK, an MCP server (<code>ask</code> · <code>feedback</code> · <code>why</code> ·
+            <code>audit</code>), plain-English questions, and a one-click graph health report.
+          </p>
+          <p><a class="btn primary" href="/try">Paste your own facts in the playground →</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="uses wrap" id="use-cases">
+      <div class="kicker reveal">Where it pays off</div>
+      <h2 class="reveal">Anywhere an agent answers from facts that <em>drift</em>.</h2>
+      <div class="cards">
+        <div class="card reveal">
+          <div class="cn mono">SUPPORT</div>
+          <h3>Support &amp; sales copilots</h3>
+          <p>
+            Plans, prices and owners change weekly. Every resolved or escalated ticket is a verdict, so the bot stops
+            quoting last quarter's answer without anyone re-indexing a thing.
+          </p>
+        </div>
+        <div class="card reveal">
+          <div class="cn mono">INTERNAL</div>
+          <h3>Org &amp; knowledge copilots</h3>
+          <p>
+            "Who owns billing now?" is two hops through an org chart that is always slightly wrong. Corrections in chat
+            feed the tubes; the audit tells the wiki owner which facts to fix.
+          </p>
+        </div>
+        <div class="card reveal">
+          <div class="cn mono">OPS</div>
+          <h3>Runbooks &amp; incident agents</h3>
+          <p>
+            Service → dependency → on-call paths decay with every migration. Paths that resolved incidents thicken;
+            paths that paged the wrong team starve and surface in the health report.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="plans wrap" id="plans">
+      <div class="kicker reveal">Get it</div>
+      <h2 class="reveal">Open core. Runs where your graph runs.</h2>
+      <div class="cards">
+        <div class="card reveal">
+          <div class="cn mono">OPEN SOURCE · AVAILABLE NOW</div>
+          <h3>Physarum library</h3>
+          <p>
+            MIT-licensed engine, SDK, MCP server and this demo. In-memory or on your own HydraDB. One
+            <code>docker compose up</code>.
+          </p>
+        </div>
+        <div class="card reveal">
+          <div class="cn mono">CLOUD · PLANNED</div>
+          <h3>Physarum on HydraDB Cloud</h3>
+          <p>
+            A managed learning layer next to your hosted graph: verdict ingestion API, per-agent sandboxes, scheduled
+            health reports and alerts when a fact starts starving.
+          </p>
+        </div>
+        <div class="card reveal">
+          <div class="cn mono">ENTERPRISE · PLANNED</div>
+          <h3>Governed learning</h3>
+          <p>
+            Reviewer-weighted verdicts, audit trails per tube, rollback to any snapshot, and on-prem deployment for
+            graphs that can't leave the building.
+          </p>
+        </div>
+      </div>
+      <div class="traction reveal" id="traction" hidden>
+        <div class="tlive"><i class="dot"></i> Live on this deployment</div>
+        <div class="tnums" id="tnums"></div>
+        <div class="quotes" id="quotes"></div>
+      </div>
+      <form class="waitlist reveal" id="waitlist">
+        <div>
+          <h3>Want Physarum on your graph?</h3>
+          <p class="dim">Tell us what you'd use it for. We'll reach out about early access to the Cloud version.</p>
+        </div>
+        <input name="email" type="email" required placeholder="you@company.com" aria-label="Email" />
+        <input name="company" placeholder="Company (optional)" aria-label="Company" />
+        <input name="use_case" placeholder="What graph goes stale for you?" aria-label="Use case" />
+        <button class="btn primary" type="submit">Request early access</button>
+        <p class="wmsg dim" id="wmsg">We only use your email to contact you about Physarum.</p>
+      </form>
+    </section>
+
+    <section class="science wrap">
+      <div class="sci reveal">
+        <div class="kicker">The science</div>
+        <blockquote>
+          "In 2010 a slime mould rebuilt the Tokyo rail network on an agar plate. In 2012 mathematicians proved its rule
+          finds shortest paths on <em>any</em> network."
+        </blockquote>
+        <div class="refs mono">
+          Tero et al., <i>Science</i> 327 (2010) · Bonifaci, Mehlhorn &amp; Varma, SODA 2012 · Becchetti et al., ICALP
+          2013 · Straszak &amp; Vishnoi (2016)
+        </div>
+      </div>
+    </section>
+
+    <section class="faq wrap" id="faq">
+      <div class="kicker reveal">FAQ</div>
+      <h2 class="reveal">Questions judges ask.</h2>
+      <details class="reveal">
+        <summary>Where does the feedback come from in production?</summary>
+        <p>
+          Any answer-level signal: a user's 👍/👎, an LLM judge checking the cited facts, or a downstream success signal
+          (the ticket got resolved, the PR merged). In the demo, you are the verifier, or you can hand it to the
+          built-in judge.
+        </p>
+      </details>
+      <details class="reveal">
+        <summary>Why not just use vector RAG?</summary>
+        <p>
+          We measured it: hybrid RAG (dense vectors + TF-IDF keywords, reciprocal rank fusion) with a generous two-hop
+          reader. When it retrieves the right person's facts, it still can't tell a true fact from a plausible false
+          one, and after the 2026 changes it keeps retrieving the outdated head of state. It also never improves with
+          use, and it spends about 10× more context tokens per answer than following one learned path.
+        </p>
+      </details>
+      <details class="reveal">
+        <summary>Isn't this just counting votes per edge?</summary>
+        <p>
+          No, and we measured it. A count-only learner is in the comparison table. It learns, but when facts change it
+          gets stuck behind its own history. Physarum's plastic tubes and Kirchhoff credit assignment are what let it
+          unlearn.
+        </p>
+      </details>
+      <details class="reveal">
+        <summary>Are the 2020 → 2026 changes real?</summary>
+        <p>
+          Yes. Heads of state that actually changed (Elizabeth II → Charles III in 16 realms, Havel → Petr Pavel, John
+          Paul II → Leo XIV), with sources. <code>scripts/fetch_wikidata_changes.py</code> regenerates them from live
+          Wikidata.
+        </p>
+      </details>
+      <details class="reveal">
+        <summary>What does it cost to run?</summary>
+        <p>
+          One read query and one batched write per answer, plus four numeric properties per edge. Forgetting costs zero
+          writes.
+        </p>
+      </details>
+      <details class="reveal">
+        <summary>Where does it lose?</summary>
+        <p>
+          On a graph where nothing changes, simple vote counting learns about as well as Physarum; its edge is when
+          facts change, plus a sharper self-audit. Rarely asked facts learn slowly, because no traffic means no
+          evidence. The audit flags about 80% true positives, not 100%. The README has a full "where we lose" section.
+        </p>
+      </details>
+    </section>
+
+    <section class="final wrap reveal">
+      <h2>See it heal, live.</h2>
+      <p>Ask a question, replay six years of real-world change, and watch the graph re-route.</p>
+      <div class="hero-cta">
+        <a class="btn primary lg" href="/demo?autoplay=1"><span class="play">▶</span> Watch the live demo</a
+        ><a class="btn ghost lg" href="/try">Try it on your graph</a>
+      </div>
+    </section>
+
+    <footer class="footer wrap">
+      <div><span class="mark"></span> Physarum · a learning layer for HydraDB</div>
+      <div class="dim mono">
+        Built for the HydraDB hackathon · data: CoDEx (Safavi &amp; Koutra, EMNLP 2020), Wikidata · MIT
+      </div>
+    </footer>
+
+    <script src="/static/mold.js"></script>
+    <script src="/static/landing.js"></script>
+  </body>
+</html>

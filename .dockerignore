@@ -1,0 +1,5 @@
+__pycache__
+docs
+tests
+results_*.json
+.github

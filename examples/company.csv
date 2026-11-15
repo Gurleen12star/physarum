@@ -1,0 +1,8 @@
+subject,relation,object
+Bob,reports_to,Carol
+Carol,leads,Payments
+Dana,leads,Growth
+Erin,reports_to,Carol
+Frank,reports_to,Dana
+Payments,based_in,London
+Growth,based_in,Berlin

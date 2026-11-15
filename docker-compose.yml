@@ -1,0 +1,33 @@
+# One command: docker compose up  ->  http://localhost:8000
+services:
+  hydradb:
+    image: ${HYDRADB_IMAGE:-ghcr.io/hydra-db/hydradb:0.3.0}
+    environment:
+      CLOUD_PROVIDER: local
+      LOCAL_PATH: /data/store
+      GRAPH_NAMESPACE: default
+      GRAPH_ID: default
+      GRAPH_CELL_ID: cell-0
+      GRAPH_CELLS: cell-0
+      GRAPH_NODE_ID: node-0
+      GRAPH_BOLT_NODE_ADDRESSES: node-0=hydradb:7687
+      GRAPH_ADVERTISED_BOLT_ADDR: hydradb:7687
+      GRAPH_DATA_CACHE_DIR: /data/cache
+      AUTH_TOKEN: ${HYDRADB_AUTH_TOKEN:-local-development-token-32-bytes}
+      GRAPH_AUTH_TOKEN_FILE: /data/auth-token
+      GRAPH_ALLOW_PLAINTEXT: "true"
+      RUST_MIN_STACK: "33554432"
+    user: "0:0"
+    entrypoint: ["sh", "-c", "mkdir -p /data/store /data/cache && printf '%s\\n' \"$$AUTH_TOKEN\" > /data/auth-token && exec /usr/local/bin/graph-node"]
+    volumes: [hydradb-data:/data]
+    ports: ["8443:8443"]
+  app:
+    build: .
+    depends_on: [hydradb]
+    environment:
+      HYDRADB_URL: http://hydradb:8443
+      HYDRADB_AUTH_TOKEN: ${HYDRADB_AUTH_TOKEN:-local-development-token-32-bytes}
+    ports: ["8000:8000"]
+    restart: on-failure
+volumes:
+  hydradb-data:

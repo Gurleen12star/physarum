@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "physarum-graph"
+version = "1.2.0"
+description = "A self-healing knowledge graph: slime-mould dynamics on HydraDB edges, learning from one bit per answer."
+readme = "README.md"
+keywords = ["knowledge-graph", "rag", "agents", "mcp", "hydradb", "memory", "self-healing"]
+classifiers = ["License :: OSI Approved :: MIT License", "Programming Language :: Python :: 3", "Topic :: Scientific/Engineering :: Artificial Intelligence", "Topic :: Database"]
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["numpy>=1.26", "scipy>=1.11"]
+
+[project.optional-dependencies]
+server = ["fastapi>=0.110", "uvicorn>=0.29"]
+rag = ["spacy>=3.8,<3.9", "scikit-learn>=1.4"]
+mcp = ["mcp>=1.2"]
+langchain = ["langchain-core>=0.3"]
+
+[project.scripts]
+physarum = "physarum.cli:main"
+physarum-mcp = "physarum.mcp_local:main"
+
+[project.urls]
+Homepage = "https://github.com/YOUR_GITHUB/physarum"
+Demo = "https://YOUR-DEPLOYMENT"
+
+[tool.setuptools]
+packages = ["physarum"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501", "E731", "B008", "B905"]

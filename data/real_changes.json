@@ -1,0 +1,74 @@
+{
+ "description": "Real changes to 'head of state' (Wikidata P35) between the CoDEx snapshot (~2020) and 2026. Regenerate from live Wikidata with: python scripts/fetch_wikidata_changes.py",
+ "relation": "P35",
+ "as_of": "2026-06",
+ "changes": [
+  {
+   "event": "Accession of Charles III",
+   "date": "2022-09-08",
+   "old": "Q9682",
+   "new": {
+    "qid": "Q43274",
+    "name": "Charles III"
+   },
+   "countries": [
+    "Q145",
+    "Q21",
+    "Q408",
+    "Q16",
+    "Q664",
+    "Q781",
+    "Q778",
+    "Q242",
+    "Q769",
+    "Q766",
+    "Q691",
+    "Q763",
+    "Q760",
+    "Q757",
+    "Q685",
+    "Q672"
+   ],
+   "source": "https://www.wikidata.org/wiki/Q43274"
+  },
+  {
+   "event": "Petr Pavel becomes President of the Czech Republic",
+   "date": "2023-03-09",
+   "old": "Q36233",
+   "new": {
+    "qid": null,
+    "name": "Petr Pavel"
+   },
+   "countries": [
+    "Q213"
+   ],
+   "source": "https://en.wikipedia.org/wiki/Petr_Pavel"
+  },
+  {
+   "event": "Election of Pope Leo XIV",
+   "date": "2025-05-08",
+   "old": "Q989",
+   "new": {
+    "qid": null,
+    "name": "Pope Leo XIV"
+   },
+   "countries": [
+    "Q237"
+   ],
+   "source": "https://en.wikipedia.org/wiki/Pope_Leo_XIV"
+  }
+ ],
+ "unchanged_after_churn": [
+  {
+   "country": "Q30",
+   "note": "United States: Trump (2020) -> Biden (2021) -> Trump (2025). Net state in 2026 equals the 2020 snapshot."
+  }
+ ],
+ "excluded": [
+  {
+   "country": "Q244",
+   "note": "Barbados became a republic on 2021-11-30; excluded until regenerated from live Wikidata (current president not verified here)."
+  }
+ ],
+ "note_qids": "new-holder QIDs left null are filled in by the fetch script; names and dates are from the cited sources"
+}
