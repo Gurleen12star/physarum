@@ -65,6 +65,24 @@
         </p>
       </header>
 
+      <div class="playlayout">
+      <section class="pcard gcard" id="gcard" aria-label="Live diagram of your graph">
+        <div class="ghead">
+          <div class="ptitle"><span class="num live"></span> Your graph, live</div>
+          <span class="gmeta mono" id="gmeta"></span>
+          <button class="btn ghost sm" id="gFit" title="Fit the whole graph in view">Fit</button>
+        </div>
+        <div class="gstage">
+          <svg id="graph" role="img" aria-label="Diagram of your facts: entities and the relations between them"></svg>
+          <div class="gempty" id="gempty">Build a graph and it grows here.</div>
+        </div>
+        <div class="glegend mono">
+          <span><i class="sw path"></i>answer path</span><span><i class="sw alt"></i>other candidates</span
+          ><span><i class="sw fed"></i>fed tube (trusted)</span><span><i class="sw bad"></i>starving (stale?)</span>
+        </div>
+        <p class="ghint">Click an entity to ask from it · scroll to zoom · drag to rearrange · hover a tube for its state</p>
+      </section>
+
       <div class="pgrid">
         <section class="pcard">
           <div class="ptitle"><span class="num">1</span> Your facts</div>
@@ -142,8 +160,10 @@
           <pre class="code small"><code id="snippet"></code></pre>
         </section>
       </div>
+      </div>
     </main>
     <div class="toast" id="toast"></div>
+    <script src="/static/d3.min.js"></script>
     <script src="/static/try.js"></script>
   </body>
 </html>

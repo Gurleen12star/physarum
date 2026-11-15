@@ -61,6 +61,297 @@ function snippet() {
     `from physarum import Graph\n\ng = Graph.from_csv("facts.csv")\na = g.ask("${s}", ${rels})\ng.feedback(a, correct=False)\ng.audit()`;
 }
 
+/* ---------- live diagram: the visitor's graph, its tubes and the answer path ---------- */
+const GR = { nodes: new Map(), hl: { path: [], cand: new Set() }, fitted: false };
+const tubeW = e => Math.min(12, 1.4 + 2.6 * (e.D - 1));
+const nodeR = n => (n.src || n.ans ? 9 : 5 + Math.min(4, n.deg * 0.6));
+const fmt = x => (Math.round(x * 100) / 100).toString();
+
+function gsize() {
+  const r = $("#graph").getBoundingClientRect();
+  return { W: Math.max(200, r.width), H: Math.max(200, r.height) };
+}
+function graphInit() {
+  if (GR.svg || !window.d3) return !!GR.svg;
+  const svg = (GR.svg = d3.select("#graph"));
+  GR.k = Math.max(0.55, Math.min(1, gsize().W / 640)); // tighter layout on narrow screens
+  const defs = svg.append("defs");
+  ["idle", "fed", "weak", "bad"].forEach(k =>
+    defs
+      .append("marker")
+      .attr("id", "ar-" + k)
+      .attr("viewBox", "0 0 10 10")
+      .attr("refX", 8)
+      .attr("refY", 5)
+      .attr("markerWidth", 8)
+      .attr("markerHeight", 8)
+      .attr("markerUnits", "userSpaceOnUse")
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M0,1 L9,5 L0,9 z")
+      .attr("class", "ah " + k)
+  );
+  GR.root = svg.append("g");
+  GR.gL = GR.root.append("g");
+  GR.gF = GR.root.append("g");
+  GR.gT = GR.root.append("g");
+  GR.gN = GR.root.append("g");
+  GR.zoom = d3
+    .zoom()
+    .scaleExtent([0.2, 3])
+    .on("zoom", ev => GR.root.attr("transform", ev.transform));
+  svg.call(GR.zoom).on("dblclick.zoom", null);
+  GR.sim = d3
+    .forceSimulation()
+    .force(
+      "link",
+      d3
+        .forceLink()
+        .id(d => d.id)
+        .distance(l => (96 + 5 * Math.min(l.rel.length, 14)) * GR.k)
+        .strength(0.55)
+    )
+    .force("charge", d3.forceManyBody().strength(-520 * GR.k).distanceMax(600))
+    .force("collide", d3.forceCollide(d => nodeR(d) + 30 * GR.k))
+    .force("x", d3.forceX(0).strength(0.05))
+    .force("y", d3.forceY(0).strength(0.08))
+    .on("tick", graphTick);
+  const size = () => {
+    const { W, H } = gsize();
+    svg.attr("viewBox", [-W / 2, -H / 2, W, H]);
+  };
+  size();
+  addEventListener("resize", size);
+  $("#gFit").onclick = () => graphFit();
+  return true;
+}
+function linkGeom(l) {
+  const s = l.source,
+    t = l.target;
+  const dx = t.x - s.x,
+    dy = t.y - s.y,
+    d = Math.hypot(dx, dy) || 1,
+    ux = dx / d,
+    uy = dy / d;
+  const rs = nodeR(s) + 1,
+    rt = nodeR(t) + 3;
+  const x1 = s.x + ux * rs,
+    y1 = s.y + uy * rs,
+    x2 = t.x - ux * rt,
+    y2 = t.y - uy * rt;
+  const mx = (x1 + x2) / 2 - uy * l.curve * d,
+    my = (y1 + y2) / 2 + ux * l.curve * d;
+  return { x1, y1, x2, y2, mx, my };
+}
+function linkPath(l) {
+  const g = linkGeom(l);
+  return l.curve ? `M${g.x1},${g.y1}Q${g.mx},${g.my} ${g.x2},${g.y2}` : `M${g.x1},${g.y1}L${g.x2},${g.y2}`;
+}
+function graphTick() {
+  if (!GR.link) return;
+  GR.link.attr("d", linkPath);
+  GR.flow.attr("d", linkPath);
+  GR.label.each(function (l) {
+    const g = linkGeom(l);
+    d3.select(this)
+      .attr("x", (g.x1 + 2 * g.mx + g.x2) / 4)
+      .attr("y", (g.y1 + 2 * g.my + g.y2) / 4 - 5);
+  });
+  GR.node.attr("transform", d => `translate(${d.x},${d.y})`);
+}
+function graphFit(ms = 650) {
+  const ns = [...GR.nodes.values()].filter(n => n.x != null);
+  if (!GR.svg || !ns.length) return;
+  const { W, H } = gsize();
+  const xs = ns.map(n => n.x),
+    ys = ns.map(n => n.y);
+  const x0 = Math.min(...xs) - 70,
+    x1 = Math.max(...xs) + 90,
+    y0 = Math.min(...ys) - 40,
+    y1 = Math.max(...ys) + 40;
+  const k = Math.max(0.2, Math.min(1.5, W / (x1 - x0), H / (y1 - y0)));
+  GR.svg
+    .transition()
+    .duration(ms)
+    .call(GR.zoom.transform, d3.zoomIdentity.scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2));
+}
+function graphRender(view, { fresh: reset = false } = {}) {
+  if (!graphInit()) return;
+  if (reset) {
+    GR.nodes.clear();
+    GR.fitted = false;
+  }
+  $("#gempty").hidden = view.nodes.length > 0;
+  const shown = view.edges.length;
+  $("#gmeta").textContent = view.truncated
+    ? `showing ${shown} of ${view.total_edges.toLocaleString()} facts, around ${$("#subject").value || "the busiest entity"}`
+    : `${view.nodes.length} entities · ${shown} facts`;
+
+  // keep each entity's position across updates, so votes animate in place
+  const born = [];
+  const nodes = view.nodes.map(n => {
+    let o = GR.nodes.get(n.id);
+    if (!o) {
+      o = { id: n.id };
+      born.push(o);
+      GR.nodes.set(n.id, o);
+    }
+    return Object.assign(o, n, { src: false, ans: false, onpath: false });
+  });
+  const keep = new Set(view.nodes.map(n => n.id));
+  [...GR.nodes.keys()].forEach(k => keep.has(k) || GR.nodes.delete(k));
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const links = view.edges.map(e => ({ ...e, source: byId.get(e.s), target: byId.get(e.t) }));
+  born.forEach(o => {
+    const l = links.find(l => (l.source === o && !born.includes(l.target)) || (l.target === o && !born.includes(l.source)));
+    const a = l ? (l.source === o ? l.target : l.source) : null;
+    o.x = (a ? a.x : 0) + (Math.random() - 0.5) * 60;
+    o.y = (a ? a.y : 0) + (Math.random() - 0.5) * 60;
+  });
+  const deg = new Map();
+  links.forEach(l => [l.s, l.t].forEach(k => deg.set(k, (deg.get(k) || 0) + 1)));
+  nodes.forEach(n => (n.deg = deg.get(n.id) || 0));
+  // parallel facts between the same two entities bend apart
+  const pairs = new Map();
+  links.forEach(l => {
+    const k = Math.min(l.s, l.t) + "-" + Math.max(l.s, l.t);
+    pairs.has(k) ? pairs.get(k).push(l) : pairs.set(k, [l]);
+  });
+  pairs.forEach(g =>
+    g.forEach((l, i) => (l.curve = g.length < 2 ? 0 : (i - (g.length - 1) / 2) * 0.34 * (l.s < l.t ? 1 : -1)))
+  );
+  // highlight: the chosen path (in order) and every other candidate path
+  const pathIds = new Set(GR.hl.path);
+  const byEdge = new Map(links.map(l => [l.id, l]));
+  const first = byEdge.get(GR.hl.path[0]),
+    last = byEdge.get(GR.hl.path[GR.hl.path.length - 1]);
+  links.forEach(l => {
+    l.onpath = pathIds.has(l.id);
+    l.alt = !l.onpath && GR.hl.cand.has(l.id);
+    if (l.onpath) l.source.onpath = l.target.onpath = true;
+  });
+  if (first) first.source.src = true;
+  if (last) last.target.ans = true;
+
+  const big = links.length > 70;
+  const stagger = born.length > 3 ? 900 / born.length : 0;
+  GR.link = GR.gL
+    .selectAll("path.gl")
+    .data(links, d => d.id)
+    .join(enter =>
+      enter
+        .append("path")
+        .attr("stroke-width", 0)
+        .call(p => p.append("title"))
+    )
+    .attr("class", d => "gl " + d.state)
+    .attr("marker-end", d => `url(#ar-${d.state})`);
+  GR.link
+    .transition()
+    .delay((d, i) => (born.includes(d.source) || born.includes(d.target) ? i * stagger : 0))
+    .duration(700)
+    .attr("stroke-width", tubeW);
+  GR.link
+    .select("title")
+    .text(
+      d =>
+        `${d.source.name} — ${d.rel} → ${d.target.name}\n` +
+        `tube diameter D ${fmt(d.D)} · length L ${fmt(d.L)}\n👍 ${fmt(d.acc)} · 👎 ${fmt(d.rej)}` +
+        (d.state === "bad" ? "\nstarving: probably stale or wrong" : d.state === "fed" ? "\nfed: led to right answers" : "")
+    );
+  GR.flow = GR.gF
+    .selectAll("path.gflow")
+    .data(
+      links.filter(l => l.onpath || l.alt),
+      d => d.id
+    )
+    .join("path")
+    .attr("class", d => "gflow " + (d.onpath ? "path" : "alt"));
+  GR.label = GR.gT
+    .selectAll("text.gel")
+    .data(
+      links.filter(l => !big || l.onpath || l.alt || l.state === "bad"),
+      d => d.id
+    )
+    .join("text")
+    .attr("class", d => "gel" + (d.onpath ? " hl" : d.state === "bad" ? " bad" : ""))
+    .text(d => d.rel);
+  GR.node = GR.gN
+    .selectAll("g.gn")
+    .data(nodes, d => d.id)
+    .join(enter => {
+      const g = enter.append("g").style("opacity", 0);
+      g.append("circle").attr("class", "hit"); // bigger, invisible click target
+      g.append("circle").attr("class", "dot");
+      g.append("text").attr("dy", 4);
+      g.append("title");
+      g.transition()
+        .delay((d, i) => i * stagger)
+        .duration(450)
+        .style("opacity", 1);
+      return g;
+    })
+    .attr("class", d => "gn" + (d.out ? " out" : "") + (d.onpath ? " onpath" : "") + (d.src ? " src" : "") + (d.ans ? " ans" : ""))
+    .on("click", (ev, d) => askFrom(d.name))
+    .call(
+      d3
+        .drag()
+        .on("start", (ev, d) => {
+          if (!ev.active) GR.sim.alphaTarget(0.25).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on("drag", (ev, d) => {
+          d.fx = ev.x;
+          d.fy = ev.y;
+        })
+        .on("end", (ev, d) => {
+          if (!ev.active) GR.sim.alphaTarget(0);
+          d.fx = d.fy = null;
+        })
+    );
+  GR.node.select("circle.dot").attr("r", nodeR);
+  GR.node.select("circle.hit").attr("r", d => nodeR(d) + 9);
+  GR.node
+    .select("text")
+    .attr("x", d => nodeR(d) + 5)
+    .text(d => (nodes.length <= 90 || d.onpath || d.src || d.ans || d.deg >= 4 ? d.name : ""));
+  GR.node.select("title").text(d => (d.out ? `${d.name}: click to ask from here` : d.name));
+
+  GR.sim.nodes(nodes);
+  GR.sim.force("link").links(links);
+  GR.sim.alpha(born.length ? 0.9 : 0.15).restart();
+  graphTick();
+  if (born.length) {
+    setTimeout(() => graphFit(), GR.fitted ? 600 : 1300); // first build: let it unfold, then frame it
+    GR.fitted = true;
+  }
+}
+async function refreshGraph(opts) {
+  if (!P.schema) return;
+  const q = new URLSearchParams({
+    focus: $("#subject").value.trim(),
+    edges: [...GR.hl.path, ...GR.hl.cand].slice(0, 200).join(","),
+  });
+  try {
+    graphRender(await api("/api/try/graph?" + q), opts);
+  } catch (e) {
+    $("#gmeta").textContent = e.message;
+  }
+}
+function askFrom(name) {
+  if (!P.schema) return;
+  const outs = P.schema.out_rels[name];
+  if (!outs || !outs.length) return toast(`<b>${esc(name)}</b> has no outgoing facts to follow. Try another entity.`);
+  $("#subject").value = name;
+  const cur = hops();
+  if (!cur.length || !outs.includes(cur[0])) {
+    $("#hops").innerHTML = "";
+    addHop(outs[0]);
+  }
+  ask();
+}
+
 async function load(text) {
   try {
     const sc = await api("/api/try/load", { text });
@@ -77,6 +368,8 @@ async function load(text) {
     else addHop((sc.out_rels[first] || sc.relations)[0]);
     snippet();
     renderAudit([]);
+    GR.hl = { path: [], cand: new Set() };
+    refreshGraph({ fresh: true });
   } catch (e) {
     $("#loadNote").textContent = e.message;
   }
@@ -102,6 +395,8 @@ function render(a, before) {
         ? `Healed: <b>${esc(before.answer)}</b> → <b>${esc(a.answer)}</b> after one vote.`
         : `Confidence ${pct(before.confidence)} → <b>${pct(a.confidence)}</b>.`;
   } else $("#delta").textContent = "";
+  GR.hl = { path: a.path_edges || [], cand: new Set(a.cand_edges || []) };
+  refreshGraph();
 }
 
 async function ask() {
@@ -148,6 +443,7 @@ async function addFact() {
     });
     ["#fs", "#fr", "#fo"].forEach(k => ($(k).value = ""));
     toast(`Added <b>${esc(s)} — ${esc(r)} → ${esc(o)}</b>. Old facts stay; votes decide.`);
+    refreshGraph();
   } catch (e) {
     toast(esc(e.message));
   }

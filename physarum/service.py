@@ -94,11 +94,17 @@ _paths: dict[tuple, list] = {}
 _paths_lock = threading.Lock()
 
 
+_db_edges: dict[int, tuple] = {}  # last learned state read from (or written to) the store, for the shared colony
+
+
 def remember_paths(q, cands):
     key = (q.s, q.r1, q.r2)
     struct = [(tuple(c.nodes), tuple((e.eid, e.src, e.dst, e.rel) for e in c.edges)) for c in cands]
     with _paths_lock:
         _paths[key] = struct
+        for c in cands:
+            for e in c.edges:
+                _db_edges[e.eid] = (e.R, e.acc, e.rej)
     return struct
 
 
@@ -136,6 +142,7 @@ class Session:
     def __init__(self, sid: str, shared: bool = False):
         self.sid, self.shared = sid, shared
         self.lock = threading.RLock()
+        self.defer, self.pending = False, {}
         self.engine = Engine(Params(mode="physarum"))
         self.edges: dict[int, EdgeState] = {}  # sandbox: private tube state
         self.registry: dict[int, EdgeState] = {}  # every tube this session has fed or starved
@@ -177,29 +184,27 @@ class Session:
 
         `live=True` (every question a visitor asks) runs algo.SSpaths natively on HydraDB. Bulk work
         (measurement sweeps, simulated agent traffic) reuses each question's path structure, which never
-        changes while the demo runs; only the learned tube state does, and that lives in the session.
-        The shared colony always reads natively, because its learned state lives on the HydraDB edges.
+        changes while the demo runs; only the learned tube state does. Sandboxes keep that state privately.
+        The shared colony keeps it in HydraDB: it is read from the edges at start-up and every change is
+        written back.
         """
-        if self.shared or live:
+        if live:
             native = STORE.chain(q.s, q.r1, q.r2)
-            remember_paths(q, native)
-            out = []
-            for c in native:
-                if not self.replayed and any(e.eid >= BASE_EDGES for e in c.edges):
-                    continue  # 2026 facts don't exist yet in this session's world
-                out.append(c if self.shared else Candidate(c.nodes, [self._edge(e) for e in c.edges]))
-            return out
+            structs = remember_paths(q, native)
+        else:
+            structs = paths(q)
         out = []
-        for nodes, edges in paths(q):
+        for nodes, edges in structs:
             if not self.replayed and any(e[0] >= BASE_EDGES for e in edges):
-                continue
+                continue  # 2026 facts don't exist yet in this session's world
             out.append(Candidate(list(nodes), [self._edge_t(*e) for e in edges]))
         return out
 
     def _edge_t(self, eid, src, dst, rel) -> EdgeState:
         st = self.edges.get(eid)
         if st is None:
-            st = self.edges[eid] = EdgeState(eid, src, dst, rel)
+            seed = _db_edges.get(eid) if self.shared else None
+            st = self.edges[eid] = EdgeState(eid, src, dst, rel, *seed) if seed else EdgeState(eid, src, dst, rel)
         return st
 
     def truth(self, cands):
@@ -207,8 +212,22 @@ class Session:
         return {c.answer for c in cands if all(t[e.eid] for e in c.edges)}
 
     def write(self, touched):
-        if self.shared:
-            STORE.write(self.engine, touched)
+        if not self.shared:
+            return
+        touched = list(touched)
+        if self.defer:
+            self.pending.update({e.eid: e for e in touched})
+            return
+        STORE.write(self.engine, touched)
+        for e in touched:
+            _db_edges[e.eid] = (e.R, e.acc, e.rej)
+
+    def flush(self):
+        """Write batched changes (agent traffic) to HydraDB in one go."""
+        self.defer = False
+        if self.pending:
+            batch, self.pending = list(self.pending.values()), {}
+            self.write(batch)
 
     def persist(self):
         if self.shared:
@@ -431,6 +450,8 @@ class Session:
             e.R, e.acc, e.rej = 0.0, 0.0, 0.0
         if self.shared:
             STORE.reset(list(self.registry.values()))
+            for eid in self.registry:
+                _db_edges[eid] = (0.0, 0.0, 0.0)
         self.engine.scale = 1.0
         return len(self.snapshot["edges"])
 
@@ -475,6 +496,8 @@ def reset_session(s: Session) -> Session:
         if s.shared:
             STORE.reset()
             STORE.save_meta({"loaded": True})
+            with _paths_lock:
+                _db_edges.clear()
         fresh = _sessions[s.sid] = Session(s.sid, shared=s.shared)
         return fresh
 

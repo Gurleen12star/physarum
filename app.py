@@ -174,8 +174,12 @@ def feed(body: Feed, request: Request):
     n = max(1, min(body.n, 1000))
     with s.lock:
         t0, right = time.time(), 0
-        for _ in range(n):
-            right += s.apply(s.pick()).get("was_right", False)
+        s.defer = True  # shared colony: one batched HydraDB write for the whole batch
+        try:
+            for _ in range(n):
+                right += s.apply(s.pick()).get("was_right", False)
+        finally:
+            s.flush()
         pt = s.measure()
         traction.bump("demo_verdicts", n)
         s.snap(f"{n} agent questions")
@@ -446,6 +450,15 @@ def try_add(body: PlayFact, request: Request):
         except ValueError as err:
             raise HTTPException(400, str(err)) from err
         return p.schema()
+
+
+@app.get("/api/try/graph")
+def try_graph(request: Request, focus: str = "", edges: str = ""):
+    """The visitor's graph with learned tube state, for the live diagram on /try."""
+    p = playground(request)
+    extra = [int(x) for x in edges.split(",") if x.strip().isdigit()][:200]
+    with p.lock:
+        return p.graph_view(focus or None, extra)
 
 
 @app.get("/api/try/audit")

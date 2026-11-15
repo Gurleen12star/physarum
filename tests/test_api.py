@@ -90,6 +90,39 @@ def test_playground_rejects_bad_input(text):
 
 def test_playground_needs_a_graph():
     assert client.post("/api/try/ask", json={"subject": "x", "relations": []}, headers=h("t-none")).status_code == 400
+    assert client.get("/api/try/graph", headers=h("t-none")).status_code == 400
+
+
+def test_playground_graph_view_shows_learning():
+    s = h("t-graph")
+    client.post("/api/try/load", json={"text": client.get("/api/try/example").json()["text"]}, headers=s)
+    g = client.get("/api/try/graph?focus=Bob", headers=s).json()
+    assert len(g["edges"]) == 10 and len(g["nodes"]) == 11 and not g["truncated"]
+    assert {e["state"] for e in g["edges"]} == {"idle"}
+    a = client.post(
+        "/api/try/ask", json={"subject": "Bob", "relations": ["reports_to", "leads", "based_in"]}, headers=s
+    ).json()
+    assert len(a["path_edges"]) == 3 and set(a["path_edges"]) <= set(a["cand_edges"])
+    client.post("/api/try/feedback", json={"id": a["id"], "correct": a["answer"] == "Berlin"}, headers=s)
+    names = {n["id"]: n["name"] for n in g["nodes"]}
+    after = client.get("/api/try/graph", headers=s).json()["edges"]
+    states = {(names[e["s"]], e["rel"], names[e["t"]]): e["state"] for e in after}
+    if a["answer"] == "Berlin":
+        assert states[("Growth", "based_in", "Berlin")] == "fed"
+    else:  # the stale fact is where the wrong path split off
+        assert states[("Bob", "reports_to", "Carol")] == "bad"
+        assert states[("Erin", "reports_to", "Carol")] == "idle"
+
+
+def test_playground_graph_view_is_capped_for_big_graphs():
+    from physarum.playground import MAX_VIEW_EDGES
+
+    s = h("t-big")
+    rows = "\n".join(f"n{i},link,n{i + 1}" for i in range(600))
+    client.post("/api/try/load", json={"text": rows}, headers=s)
+    g = client.get("/api/try/graph?focus=n300", headers=s).json()
+    assert g["truncated"] and len(g["edges"]) <= MAX_VIEW_EDGES
+    assert any(n["name"] == "n300" for n in g["nodes"])
 
 
 def test_waitlist_survey_and_traction(tmp_path, monkeypatch):
